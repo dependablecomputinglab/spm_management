@@ -273,6 +273,20 @@ namespace {
 
 
         bool outlineOptimizeSize(Module &mod) {
+            Function *largestFunction = NULL;
+            unsigned long largestSize = 0;
+            for(auto const entry : funcSize) {
+                Function *function = entry.first;
+                unsigned long size = entry.second;
+                if(!largestFunction || size > largestSize) {
+                    largestFunction = function;
+                    largestSize = size;
+                }
+            }
+            errs() << "largest function is: " << largestFunction->getName() << " (" << largestSize << ")\n";
+            for(BasicBlock &bb : *largestFunction) {
+                bb.dump();
+            }
             return false;
         }
 
