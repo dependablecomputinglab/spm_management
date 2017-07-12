@@ -17,6 +17,7 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/Pass.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/DominanceFrontier.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
@@ -50,6 +51,7 @@ namespace {
             AU.addRequired<LoopInfoWrapperPass>();
             AU.addRequired<DominatorTreeWrapperPass>();
             AU.addRequired<CallGraphWrapperPass>();
+            AU.addRequired<DominanceFrontierWrapperPass>();
         }
 
 
@@ -124,6 +126,11 @@ namespace {
             costInfo = calculator.analyzeCost();
 
             return optimalSize;
+        }
+
+
+        bool isGoodForOutlining(SmallVector <BasicBlock *, 16> bbs) {
+            return true;
         }
 
 
@@ -284,9 +291,33 @@ namespace {
                 }
             }
             errs() << "largest function is: " << largestFunction->getName() << " (" << largestSize << ")\n";
+            
+            std::vector <BasicBlock *> bbs;
+            DominatorTree &DT = getAnalysis<DominatorTreeWrapperPass>(*largestFunction).getDomTree();
+            //DominanceFrontier &DF = getAnalysis<DominanceFrontierWrapperPass>(*largestFunction).getDominanceFrontier();
+
             for(BasicBlock &bb : *largestFunction) {
-                bb.dump();
+                if(!CodeExtractor::isBlockValidForExtraction(bb)) 
+                    continue;
+                SmallVector <BasicBlock *, 16> descendants;
+                DT.getDescendants(&bb, descendants);
+
+                if(!isGoodForOutlining(descendants)) 
+                    continue;
+
+                CodeExtractor code_extractor(descendants, &DT);
+                Function *new_func = code_extractor.extractCodeRegion();
+                if(!new_func) {
+                    errs() << "failed to outline\n";
+                } else {
+                    errs() << "following basic blocks are outlined: \n";
+                    for(auto *bb : descendants) {
+                        bb->dump();
+                    }
+                }
+                break;
             }
+
             return false;
         }
 
