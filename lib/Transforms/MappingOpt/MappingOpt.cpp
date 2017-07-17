@@ -129,8 +129,20 @@ namespace {
         }
 
 
-        bool isGoodForOutlining(SmallVector <BasicBlock *, 16> bbs) {
-            return true;
+        bool isGoodForOutlining(unsigned long nTotalInsts,
+                SmallVector <BasicBlock *, 16> bbs) {
+            unsigned long nInsts = 0;
+            for(BasicBlock *bb : bbs) {
+                nInsts += bb->size();
+            }
+            double fraction = (double)nInsts/nTotalInsts;
+            DEBUG(errs() << "total number of insts: " << nTotalInsts << "\n");
+            DEBUG(errs() << "# of insts in bbs: " << nInsts << "\n");
+            DEBUG(errs() << "fraction: " << fraction << "\n");
+            if(fraction < 0.7 && fraction > 0.3)
+                return true;
+            else
+                return false;
         }
 
 
@@ -260,20 +272,18 @@ namespace {
                     }
                 }
 
-
-                /*
-                DominatorTree *DT = new DominatorTree(
-                        getAnalysis<DominatorTreeWrapperPass>(*f).getDomTree());
-                */
-
                 CodeExtractor code_extractor(DT, *loop);
                 Function *new_func = code_extractor.extractCodeRegion();
                 if(!new_func) {
                     errs() << "failed to extract the loop\n";
                 } else {
+                    std::string newName(new_func->getName());
+                    std::replace(newName.begin(), newName.end(), '.', '_');
+                    new_func->setName(newName);
                     errs() << "loop " << *loop << " is extracted into new function " <<
                         new_func->getName() << "\n";
                 }
+                break;
             }
             return false;
         }
@@ -295,27 +305,47 @@ namespace {
             std::vector <BasicBlock *> bbs;
             DominatorTree &DT = getAnalysis<DominatorTreeWrapperPass>(*largestFunction).getDomTree();
             //DominanceFrontier &DF = getAnalysis<DominanceFrontierWrapperPass>(*largestFunction).getDominanceFrontier();
+            
 
+            unsigned long nInsts = 0;
+            for(BasicBlock &bb : *largestFunction) {
+                nInsts += bb.size();
+            }
+
+            DEBUG(errs() << "nInsts: " << nInsts << "\n");
+
+            bool outlined = false;
             for(BasicBlock &bb : *largestFunction) {
                 if(!CodeExtractor::isBlockValidForExtraction(bb)) 
                     continue;
                 SmallVector <BasicBlock *, 16> descendants;
                 DT.getDescendants(&bb, descendants);
 
-                if(!isGoodForOutlining(descendants)) 
+                if(!isGoodForOutlining(nInsts, descendants)) 
                     continue;
 
+                outlined = true;
                 CodeExtractor code_extractor(descendants, &DT);
                 Function *new_func = code_extractor.extractCodeRegion();
                 if(!new_func) {
                     errs() << "failed to outline\n";
                 } else {
+                    std::string newName(new_func->getName());
+                    std::replace(newName.begin(), newName.end(), '.', '_');
+                    new_func->setName(newName);
                     errs() << "following basic blocks are outlined: \n";
+                    /*
                     for(auto *bb : descendants) {
                         bb->dump();
                     }
+                    */
+                    errs() << "into function " << new_func->getName() << "\n";
                 }
                 break;
+            }
+
+            if(!outlined) {
+                errs() << "no function is outlined since there is no approate function to split\n";
             }
 
             return false;

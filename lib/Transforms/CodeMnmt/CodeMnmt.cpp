@@ -359,6 +359,9 @@ namespace {
 		    std::string func_name = fi->getName().str();
 		    //DEBUG(errs() << func_name <<"\n");
 
+            //errs() << "make section for: " << fi->getName() << "\n";
+            fi->setLinkage(GlobalValue::ExternalLinkage);
+
 		    if (func_name != "main") {
 			if (fi->getSection() != "."+func_name)
 			    fi->setSection("."+func_name);

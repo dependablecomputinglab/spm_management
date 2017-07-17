@@ -116,8 +116,15 @@ namespace {
                 DEBUG(errs() << "SPM size: " << nextSpmSize << ", cost: " << cost <<"\n\n");
                 if(cost >= threshold) break;
                 optimalSize = nextSpmSize;
+                errs() << "optimalSize: " << optimalSize << ", minSpmSize: " << minSpmSize << "\n";
                 if(optimalSize <= minSpmSize) break;
-                nextSpmSize = nextSpmSize - calculator.getNextSpmSize();
+                long ret = calculator.getNextSpmSize();
+                if(ret > 0)
+                    nextSpmSize = nextSpmSize - calculator.getNextSpmSize();
+                else {
+                    optimalSize = minSpmSize;
+                    break;
+                }
             }
 
             CostCalculator calculator(this, mod);

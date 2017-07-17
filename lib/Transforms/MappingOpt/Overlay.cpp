@@ -46,16 +46,23 @@ PathsType CallPathFinder::getCallPaths(Function *root) {
 
     bool hasUserFunctionCalls = false;
 
+
     for (unsigned i = 0; i < cgn->size(); ++i) {
     CallGraphNode *calledCgn = (*cgn)[i];
     Function *calledFunc = calledCgn->getFunction();
-    if (!calledFunc)
+    if (!calledFunc) {
+        DEBUG(errs() << "cannot get !calledFunc\n");
         continue;
-    if (isLibraryFunction(calledFunc))
+    }
+    if (isLibraryFunction(calledFunc)) {
+        DEBUG(errs() << calledFunc->getName() << " is LibFunction" << "\n");
         continue;
+    }
     hasUserFunctionCalls = true;
     break;
     }
+
+    DEBUG(errs() << "hasUserFunctionCalls: " << hasUserFunctionCalls << "\n");
 
     std::set< PathType > paths;
 
@@ -244,6 +251,7 @@ std::unordered_set <Function *> CallPathFinder::getReferredFunctions() {
 unsigned long CostCalculator::Region::getSize() {
     if(funcs.empty()) return 0;
     unsigned long maxFuncSize = 0;
+    errs() << "size of region "<< this << ": " << funcs.size() << "\n";
     for(std::set<Function *>::iterator i = funcs.begin(); i != funcs.end(); i++) {
     Function *func = *i;
     if(funcSize[func] > maxFuncSize) maxFuncSize = funcSize[func];
@@ -314,8 +322,10 @@ unsigned long CostCalculator::calculateCost(unsigned long spmSize) {
         continue;
     Function *func = mod.getFunction(name);
     assert(func);
-    if (referredFuncs.find(func) == referredFuncs.end())
+    if (referredFuncs.find(func) == referredFuncs.end()) {
+        DEBUG(errs() << "skip function " << func->getName() << "\n");
         continue;
+    }
     funcSize[func]  = size;
     referredFuncs.insert(func);
     //errs() << func->getName() << " " << size << "\n";
@@ -327,6 +337,7 @@ unsigned long CostCalculator::calculateCost(unsigned long spmSize) {
     Region *region = new Region();
     region->addFunction(func);
     regions.insert(region);
+    errs() << "making a region for: " << func->getName() << "\n";
     }
 
     // Try to merge regions until the overall size of regions can fit in the SPM
@@ -362,6 +373,10 @@ unsigned long CostCalculator::calculateCost(unsigned long spmSize) {
 unsigned long CostCalculator::findMerger(Region* &src, Region* &dest) {
     unsigned long minCost = ~0;
     //for all possible region combinations
+    DEBUG(errs() << "finding merge target among " << regions.size() << " regions\n");
+    if(regions.size() <= 1) {
+        return (*regions.begin())->getSize();
+    }
     for(std::set<Region *>::iterator ii = regions.begin(), ie = regions.end(); ii != ie; ++ii) {
     std::set<Region *>::iterator in = ii;
     ++in;
@@ -383,7 +398,12 @@ unsigned long CostCalculator::findMerger(Region* &src, Region* &dest) {
 }
 
 
-unsigned long CostCalculator::getNextSpmSize() {
+long CostCalculator::getNextSpmSize() {
+    DEBUG(errs() << "finding merge target among " << regions.size() << " regions\n");
+    if(regions.size() <= 1) {
+        //return (*regions.begin())->getSize();
+        return -1;
+    }
     Region *src, *dest;
     findMerger(src, dest);
     unsigned long srcSize, destSize;

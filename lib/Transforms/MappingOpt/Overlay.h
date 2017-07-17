@@ -86,7 +86,7 @@ class CostCalculator {
     CostCalculator(Pass *p, Module &m);
     void getCallPaths();
     unsigned long calculateCost(unsigned long spmSize);
-    unsigned long getNextSpmSize();
+    long getNextSpmSize();
     CostInfo analyzeCost();
 
     private:
