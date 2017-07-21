@@ -280,8 +280,8 @@ namespace {
                     std::string newName(new_func->getName());
                     std::replace(newName.begin(), newName.end(), '.', '_');
                     new_func->setName(newName);
-                    errs() << "loop " << *loop << " is extracted into new function " <<
-                        new_func->getName() << "\n";
+                    DEBUG(errs() << "loop " << *loop << " is extracted into new function " <<
+                        new_func->getName() << "\n");
                 }
                 break;
             }

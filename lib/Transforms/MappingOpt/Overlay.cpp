@@ -251,7 +251,6 @@ std::unordered_set <Function *> CallPathFinder::getReferredFunctions() {
 unsigned long CostCalculator::Region::getSize() {
     if(funcs.empty()) return 0;
     unsigned long maxFuncSize = 0;
-    errs() << "size of region "<< this << ": " << funcs.size() << "\n";
     for(std::set<Function *>::iterator i = funcs.begin(); i != funcs.end(); i++) {
     Function *func = *i;
     if(funcSize[func] > maxFuncSize) maxFuncSize = funcSize[func];
@@ -337,7 +336,7 @@ unsigned long CostCalculator::calculateCost(unsigned long spmSize) {
     Region *region = new Region();
     region->addFunction(func);
     regions.insert(region);
-    errs() << "making a region for: " << func->getName() << "\n";
+    DEBUG(errs() << "making a region for: " << func->getName() << "\n");
     }
 
     // Try to merge regions until the overall size of regions can fit in the SPM
