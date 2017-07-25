@@ -220,6 +220,13 @@ namespace {
                 }
             }
 
+            if(costInfo.size() < 1) {
+                errs() << "no function to outline\n";
+                return false;
+            } else {
+                errs() << "costInfo.size(): " << costInfo.size() << "\n";
+            }
+
             for(auto i = costInfo.begin(); i != costInfo.end(); i++) {
                 std::pair <Function *, Function *> key = i->first;
                 unsigned long conflict = i->second;
