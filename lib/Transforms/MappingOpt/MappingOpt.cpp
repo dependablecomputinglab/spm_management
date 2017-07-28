@@ -171,6 +171,13 @@ namespace {
                 }
             }
 
+            if(costInfo.size() < 1) {
+                errs() << "no function to inline\n";
+                return false;
+            } else {
+                errs() << "costInfo.size(): " << costInfo.size() << "\n";
+            }
+
             Function *fa = maxConflictingFunctions.first;
             Function *fb = maxConflictingFunctions.second;
             Function *caller = getCaller(fa, fb);
