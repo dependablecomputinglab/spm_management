@@ -95,6 +95,13 @@ namespace {
             unsigned long minSpmSize, maxSpmSize, optimalSize, threshold;
             minSpmSize = maxSpmSize = optimalSize = 0;
 
+            //use only referenced functions
+            {
+                CostCalculator calculator(this, mod);
+                calculator.calculateCost(100000);
+                funcSize = calculator.getFuncSize();
+            }
+
             for(auto const entry : funcSize) {
                 //entry.first is a function *
                 //Function *function = entry.first;
@@ -131,7 +138,15 @@ namespace {
             cost = calculator.calculateCost(optimalSize);
             costInfo = calculator.analyzeCost();
 
+
             optimalCost = cost;
+
+            std::ofstream outFile("_opt_size", std::ios::out);
+            outFile << "min\t" << minSpmSize << "\t" << -1 << "\n";
+            outFile << "max\t" << maxSpmSize << "\t" << -1 << "\n";
+            outFile << "opt\t" << optimalSize << "\t" << optimalCost << "\n";
+            outFile.close();
+
             return optimalSize;
         }
 
@@ -152,10 +167,6 @@ namespace {
             unsigned long optimalCost;
             unsigned int optimalSize = getOptimalSize(mod, optimalCost);
             DEBUG(errs() << "optimal size: " << optimalSize << ", cost: " << optimalCost << "\n");
-
-            std::ofstream outFile("_opt_size", std::ios::out);
-            outFile << optimalSize << "\t" << optimalCost << "\n";
-            outFile.close();
 
             return false;
         }

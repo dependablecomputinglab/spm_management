@@ -89,6 +89,8 @@ class CostCalculator {
     long getNextSpmSize();
     CostInfo analyzeCost();
 
+    std::unordered_map <Function *, unsigned long> getFuncSize();
+
     private:
     unsigned long getRegionSizeSum();
     unsigned long getMaxRegionSize();
