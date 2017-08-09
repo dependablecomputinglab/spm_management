@@ -31,6 +31,9 @@ using namespace llvm;
 
 #define DEBUG_TYPE "smmmo"
 
+static cl::opt<std::string> SizeThreshold(
+        "size-threshold", cl::Hidden,
+        cl::desc("Size threshold."));
 
 static std::unordered_map <Function *, unsigned long> funcSize;
 static CostInfo costInfo;
@@ -91,8 +94,16 @@ namespace {
         }
 
 
+        bool stopMinimize(unsigned long cost, unsigned long maxSpmSize) {
+            unsigned long threshold = atoi(SizeThreshold.c_str()) * maxSpmSize;
+            DEBUG(errs() << "threshold: " << threshold << "\n");
+            return cost >= threshold;
+        }
+
+
+
         unsigned int getOptimalSize(Module &mod, unsigned long &optimalCost) {
-            unsigned long minSpmSize, maxSpmSize, optimalSize, threshold;
+            unsigned long minSpmSize, maxSpmSize, optimalSize;
             minSpmSize = maxSpmSize = optimalSize = 0;
 
             //use only referenced functions
@@ -112,16 +123,14 @@ namespace {
                 }
             }
 
-            threshold = 100 * maxSpmSize;
             unsigned long cost, nextSpmSize;
             optimalSize = nextSpmSize = maxSpmSize;
-            DEBUG(errs() << "threshold: " << threshold << "\n");
 
             while(1) {
                 CostCalculator calculator(this, mod);
                 cost = calculator.calculateCost(nextSpmSize);
                 DEBUG(errs() << "SPM size: " << nextSpmSize << ", cost: " << cost <<"\n\n");
-                if(cost >= threshold) break;
+                if(stopMinimize(cost, maxSpmSize)) break;
                 optimalSize = nextSpmSize;
                 errs() << "optimalSize: " << optimalSize << ", minSpmSize: " << minSpmSize << "\n";
                 if(optimalSize <= minSpmSize) break;
