@@ -94,10 +94,13 @@ namespace {
         }
 
 
-        bool stopMinimize(unsigned long cost, unsigned long maxSpmSize) {
-            unsigned long threshold = atoi(SizeThreshold.c_str()) * maxSpmSize;
-            DEBUG(errs() << "threshold: " << threshold << "\n");
-            return cost >= threshold;
+        bool stopMinimize(long cost, long prevCost) {
+            if(prevCost <= 0) return false;
+            unsigned long threshold = atoi(SizeThreshold.c_str());
+            double improved = (((double)prevCost / cost)) * 100;
+            DEBUG(errs() << "threshold: " << threshold << ", improved: " << improved << 
+                    ", cost: " << cost << ", prevCost: " << prevCost << "\n");
+            return improved < threshold;
         }
 
 
@@ -105,6 +108,8 @@ namespace {
         unsigned int getOptimalSize(Module &mod, unsigned long &optimalCost) {
             unsigned long minSpmSize, maxSpmSize, optimalSize;
             minSpmSize = maxSpmSize = optimalSize = 0;
+
+            DEBUG(errs() << "getOptimalSize called\n");
 
             //use only referenced functions
             {
@@ -123,20 +128,30 @@ namespace {
                 }
             }
 
-            unsigned long cost, nextSpmSize;
-            optimalSize = nextSpmSize = maxSpmSize;
+            /*
 
+            long cost, prevCost=-1, nextSpmSize;
+            optimalSize = nextSpmSize = minSpmSize;
+
+            DEBUG(errs() << "start finding SPM size starting with: " << optimalSize << "\n");
             while(1) {
                 CostCalculator calculator(this, mod);
-                cost = calculator.calculateCost(nextSpmSize);
-                DEBUG(errs() << "SPM size: " << nextSpmSize << ", cost: " << cost <<"\n\n");
-                if(stopMinimize(cost, maxSpmSize)) break;
+                MappingConfig mappingConfigs;
+                cost = calculator.calculateCost(nextSpmSize, &mappingConfigs);
+                for(auto i : mappingConfigs) {
+                    errs() << i.first << "\t" << i.second << "\n";
+                }
+                DEBUG(errs() << "SPM size: " << nextSpmSize << ", cost: " << cost <<"\n");
+                errs() << "optimalSize: " << optimalSize << ", minSpmSize: " << minSpmSize << "\n\n";
+                if(stopMinimize(cost, prevCost)) break;
                 optimalSize = nextSpmSize;
-                errs() << "optimalSize: " << optimalSize << ", minSpmSize: " << minSpmSize << "\n";
-                if(optimalSize <= minSpmSize) break;
+                if(optimalSize >= maxSpmSize) break;
+                DEBUG(errs() << "getNextSpmSize called\n");
                 long ret = calculator.getNextSpmSize();
-                if(ret > 0)
-                    nextSpmSize = nextSpmSize - calculator.getNextSpmSize();
+                if(ret > 0) {
+                    nextSpmSize = nextSpmSize + ret;
+                    prevCost = cost;
+                }
                 else {
                     optimalSize = minSpmSize;
                     break;
@@ -149,10 +164,48 @@ namespace {
 
 
             optimalCost = cost;
+            */
+
+            unsigned int cost;
+            CostCalculator calculator(this, mod);
+            MappingConfig mappingConfigs;
+            cost = calculator.calculateCost(minSpmSize, &mappingConfigs);
+            std::reverse(mappingConfigs.begin(), mappingConfigs.end());
+
+            //double improved = (((double)prevCost / cost)) * 100;
+
+            for(auto i : mappingConfigs) {
+                unsigned int size = i.first;
+                unsigned int cost = i.second;
+                errs() << (int)(100*(double)size/minSpmSize) << ", " << (int)(100*(double)cost/minSpmSize) << "\n";
+            }
+
+            unsigned long i=0;
+            double minCost = mappingConfigs[0].second;
+            double minSize = mappingConfigs[0].first;
+
+            unsigned long threshold = atoi(SizeThreshold.c_str());
+            errs() << "threshold: " << threshold << "\n";
+
+            for(i=1; i<mappingConfigs.size(); i++) {
+                unsigned int prevSize, prevCost, curSize, curCost;
+                prevSize = mappingConfigs[i-1].first; prevCost = mappingConfigs[i-1].second;
+                curSize = mappingConfigs[i].first; curCost = mappingConfigs[i].second;
+                double sizeOverhead = (curSize - prevSize) / (double)minSize;
+                double performanceGain = (prevCost - curCost) / (double)minCost;
+                double utility = (performanceGain / sizeOverhead) * 100;
+                errs() << "sizeOverhead: " << sizeOverhead << ", performanceGain: " << performanceGain << ", utility: " << utility << "\n";
+                if(utility < threshold) break;
+                else {
+                    errs() << "utility (" << utility << ") is greater than threshold (" << threshold << "), increase size\n";
+                }
+            }
+            optimalSize = mappingConfigs[i-1].first;
+            optimalCost = mappingConfigs[i-1].second;
 
             std::ofstream outFile("_opt_size", std::ios::out);
-            outFile << "min\t" << minSpmSize << "\t" << -1 << "\n";
-            outFile << "max\t" << maxSpmSize << "\t" << -1 << "\n";
+            outFile << "min\t" << mappingConfigs[0].first << "\t" << mappingConfigs[0].second << "\n";
+            outFile << "max\t" << mappingConfigs[mappingConfigs.size()-1].first << "\t" << 0 << "\n";
             outFile << "opt\t" << optimalSize << "\t" << optimalCost << "\n";
             outFile.close();
 
@@ -161,6 +214,8 @@ namespace {
 
 
         bool runOnModule(Module &mod) override {
+
+            errs() << "opt-size pass called\n";
 
             //read function sizes
             std::string fileName = "_func_size";

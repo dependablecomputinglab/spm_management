@@ -47,6 +47,8 @@ typedef std::vector < NodeType > PathType;
 typedef std::set <PathType> PathsType;
 typedef std::map < std::pair <Function *, Function *>, unsigned long > CostInfo;
 
+typedef std::vector < std::pair <unsigned int, unsigned int> > MappingConfig;
+
 class CallPathFinder {
     public:
 
@@ -85,7 +87,7 @@ class CostCalculator {
 
     CostCalculator(Pass *p, Module &m);
     void getCallPaths();
-    unsigned long calculateCost(unsigned long spmSize);
+    unsigned long calculateCost(unsigned long spmSize, MappingConfig *configs = NULL);
     long getNextSpmSize();
     CostInfo analyzeCost();
 

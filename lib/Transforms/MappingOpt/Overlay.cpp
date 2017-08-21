@@ -293,7 +293,7 @@ void CostCalculator::getCallPaths() {
     assert(!referredFuncs.empty());
 }
 
-unsigned long CostCalculator::calculateCost(unsigned long spmSize) {
+unsigned long CostCalculator::calculateCost(unsigned long spmSize, MappingConfig *configs) {
 
     std::ifstream ifs;
     std::ofstream ofs;
@@ -358,22 +358,28 @@ unsigned long CostCalculator::calculateCost(unsigned long spmSize) {
 
     unsigned long cost;
     if(getRegionSizeSum() <= spmSize) cost = 0;
+    if(configs) {
+        configs->push_back(std::pair<unsigned int, unsigned int>(getRegionSizeSum(), cost));
+    }
     while(getRegionSizeSum() > spmSize) {
         DEBUG(errs() << "\nSum of region size: " << getRegionSizeSum() << ", spm size: " << spmSize << "\n\n");
         cost = findMerger(src, dest);
         DEBUG(errs() << "Merge " << src->getDescription() << " and " << dest->getDescription() << "\n\n");
         dest->merge(src);
         regions.erase(src);
+        if(configs) {
+            configs->push_back(std::pair<unsigned int, unsigned int>(getRegionSizeSum(), cost));
+        }
     }
     DEBUG(errs() << "Calculation finished" << "\n");
     DEBUG(errs() << "Sum of region size: " << getRegionSizeSum() << ", spm size: " << spmSize << "\n");
     DEBUG(errs() << "final cost: " << cost << "\n");
-    errs() << "Final regions: ";
+    DEBUG(errs() << "Final regions: ");
     for(std::set<Region *>::iterator i = regions.begin(); i != regions.end(); i++) {
         Region *region = *i;
-        errs() << region->getDescription() << " ";
+        DEBUG(errs() << region->getDescription() << " ");
     }
-    dump();
+    DEBUG(dump());
     errs() << "\n";
     return cost;
 }
@@ -408,17 +414,37 @@ unsigned long CostCalculator::findMerger(Region* &src, Region* &dest) {
 
 
 long CostCalculator::getNextSpmSize() {
-    DEBUG(errs() << "finding merge target among " << regions.size() << " regions\n");
-    if(regions.size() <= 1) {
-        //return (*regions.begin())->getSize();
+    CostInfo costInfo = analyzeCost();
+
+    if(costInfo.size() < 1) {
         return -1;
     }
-    Region *src, *dest;
-    findMerger(src, dest);
+
+    unsigned long cost = 0, maxConflict = 0;
+    std::pair <Function *, Function *> maxConflictingFunctions;
+
+    for(auto i = costInfo.begin(); i != costInfo.end(); i++) {
+        std::pair <Function *, Function *> key = i->first;
+        unsigned long conflict = i->second;
+        errs() << key.first->getName() << " <-> " << key.second->getName() << "\t" << conflict << "\n";
+        cost += conflict;
+        if(maxConflict < conflict) {
+            maxConflict = conflict;
+            maxConflictingFunctions = i->first;
+        }
+    }
+    errs() << "\n";
+
     unsigned long srcSize, destSize;
-    srcSize = src->getSize();
-    destSize = dest->getSize();
-    return srcSize > destSize ? destSize : srcSize;
+    Function *f1 = maxConflictingFunctions.first;
+    Function *f2 = maxConflictingFunctions.second;
+    errs() << "f1: " << f1->getName() << ", f2: " << f2->getName() << "\n";
+    srcSize = funcSize[f1];
+    destSize = funcSize[f2];
+    Function *ret_func = srcSize > destSize ? f1 : f2;
+    unsigned long ret = funcSize[ret_func];
+    errs() << "getNextSpmSize returns " << ret << ", which is the size of " << ret_func->getName() << "\n";
+    return ret;
 }
 
 
