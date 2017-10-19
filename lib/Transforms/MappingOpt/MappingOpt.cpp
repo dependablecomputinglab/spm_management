@@ -160,6 +160,19 @@ namespace {
             unsigned long cost = 0, maxConflict = 0;
             std::pair <Function *, Function *> maxConflictingFunctions;
 
+            /*
+            for(auto i = costInfo.begin(); i != costInfo.end(); ) {
+                std::pair <Function *, Function *> key = i->first;
+                Function *f1 = key.first, *f2 = key.second;
+                if(f1->hasInternalLinkage() || f2->hasInternalLinkage()) {
+                    errs() << "generated functions " << f1->getName() << "\t" << f2->getName() << "are skipped\n";
+                    costInfo.erase(i++);
+                } else {
+                    i++;
+                }
+            }
+            */
+
             for(auto i = costInfo.begin(); i != costInfo.end(); i++) {
                 std::pair <Function *, Function *> key = i->first;
                 unsigned long conflict = i->second;
